@@ -1,0 +1,145 @@
+import csv
+from datetime import datetime
+
+ARQUIVO_GASTOS = 'gastos.csv'
+CATEGORIAS_PADRAO = ["Alimentação", "Transporte", "Lazer", "Moradia", "Saúde", "Educação", "Outros"]
+
+def carregar_gastos():
+    """Carrega os gastos do arquivo CSV."""
+    gastos = []
+    try:
+        with open(ARQUIVO_GASTOS, mode='r', newline='', encoding='utf-8') as arquivo_csv:
+            leitor_csv = csv.DictReader(arquivo_csv)
+            for linha in leitor_csv:
+                linha['valor'] = float(linha['valor']) # Converte valor para float
+                # Converte data de string para datetime (opcional, mas útil)
+                # linha['data'] = datetime.strptime(linha['data'], '%Y-%m-%d %H:%M:%S')
+                gastos.append(linha)
+        print(f"Gastos carregados de '{ARQUIVO_GASTOS}' com sucesso.")
+    except FileNotFoundError:
+        print(f"Arquivo '{ARQUIVO_GASTOS}' não encontrado. Começando com uma lista vazia.")
+    except Exception as e:
+        print(f"Erro ao carregar gastos: {e}")
+    return gastos
+
+def salvar_gastos(gastos):
+    """Salva os gastos no arquivo CSV."""
+    try:
+        with open(ARQUIVO_GASTOS, mode='w', newline='', encoding='utf-8') as arquivo_csv:
+            if not gastos: # Se a lista de gastos estiver vazia
+                # Limpa o arquivo ou apenas não escreve nada
+                arquivo_csv.write("") # Garante que o arquivo fique vazio se não há gastos
+                print("Nenhum gasto para salvar. Arquivo limpo.")
+                return
+
+            campos = ['data', 'descricao', 'valor', 'categoria']
+            escritor_csv = csv.DictWriter(arquivo_csv, fieldnames=campos)
+            escritor_csv.writeheader()
+            escritor_csv.writerows(gastos)
+        print(f"Gastos salvos em '{ARQUIVO_GASTOS}' com sucesso.")
+    except Exception as e:
+        print(f"Erro ao salvar gastos: {e}")
+
+def adicionar_gasto(gastos):
+    """Adiciona um novo gasto à lista."""
+    print("\n--- Adicionar Novo Gasto ---")
+    descricao = input("Descrição do gasto: ")
+    while True:
+        try:
+            valor_str = input("Valor do gasto (ex: 25.50): ")
+            valor = float(valor_str.replace(',', '.')) # Aceita vírgula ou ponto
+            if valor <= 0:
+                print("O valor deve ser positivo.")
+            else:
+                break
+        except ValueError:
+            print("Valor inválido. Por favor, insira um número (ex: 25.50).")
+
+    print("\nCategorias disponíveis:")
+    for i, cat in enumerate(CATEGORIAS_PADRAO):
+        print(f"{i+1}. {cat}")
+
+    while True:
+        try:
+            escolha_cat = input(f"Escolha o número da categoria (ou digite uma nova): ")
+            if escolha_cat.isdigit() and 1 <= int(escolha_cat) <= len(CATEGORIAS_PADRAO):
+                categoria = CATEGORIAS_PADRAO[int(escolha_cat)-1]
+                break
+            elif escolha_cat: # Se o usuário digitou algo (nova categoria)
+                categoria = escolha_cat
+                if categoria not in CATEGORIAS_PADRAO:
+                    CATEGORIAS_PADRAO.append(categoria) # Adiciona nova categoria à lista padrão
+                break
+            else:
+                print("Escolha inválida.")
+        except ValueError:
+            print("Entrada inválida.")
+
+
+    data_atual = datetime.now().strftime('%Y-%m-%d %H:%M:%S') # Formato mais completo
+
+    novo_gasto = {
+        'data': data_atual,
+        'descricao': descricao,
+        'valor': valor,
+        'categoria': categoria
+    }
+    gastos.append(novo_gasto)
+    print("Gasto adicionado com sucesso!")
+    salvar_gastos(gastos) # Salva automaticamente após adicionar
+
+def visualizar_gastos(gastos):
+    """Exibe todos os gastos registrados."""
+    print("\n--- Lista de Gastos ---")
+    if not gastos:
+        print("Nenhum gasto registrado.")
+        return
+
+    # Ordenar gastos por data (do mais recente para o mais antigo)
+    # Convertendo a string de data para objeto datetime para ordenação correta
+    gastos_ordenados = sorted(
+        gastos,
+        key=lambda g: datetime.strptime(g['data'], '%Y-%m-%d %H:%M:%S'),
+        reverse=True
+    )
+
+    total_gastos = 0.0
+    for gasto in gastos_ordenados:
+        # data_formatada = gasto['data'].strftime('%d/%m/%Y %H:%M') if isinstance(gasto['data'], datetime) else gasto['data']
+        data_formatada = gasto['data'] # Mantém como string se já carregado assim
+        try:
+            # Tenta formatar se for string no formato esperado
+            dt_obj = datetime.strptime(gasto['data'], '%Y-%m-%d %H:%M:%S')
+            data_formatada = dt_obj.strftime('%d/%m/%Y %H:%M')
+        except (ValueError, TypeError):
+            pass # Mantém a string original se não conseguir converter
+
+        print(f"Data: {data_formatada} | Descrição: {gasto['descricao']} | Valor: R${gasto['valor']:.2f} | Categoria: {gasto['categoria']}")
+        total_gastos += gasto['valor']
+    print("-------------------------")
+    print(f"Total de Gastos: R${total_gastos:.2f}")
+    print("-------------------------")
+
+def menu_principal(gastos):
+    """Exibe o menu principal e gerencia as escolhas do usuário."""
+    while True:
+        print("\n--- Aplicativo de Gastos ---")
+        print("1. Adicionar Gasto")
+        print("2. Visualizar Gastos")
+        print("3. Sair")
+
+        escolha = input("Escolha uma opção: ")
+
+        if escolha == '1':
+            adicionar_gasto(gastos)
+        elif escolha == '2':
+            visualizar_gastos(gastos)
+        elif escolha == '3':
+            print("Saindo do aplicativo. Seus gastos foram salvos.")
+            break
+        else:
+            print("Opção inválida. Tente novamente.")
+
+if __name__ == "__main__":
+    lista_de_gastos = carregar_gastos()
+    menu_principal(lista_de_gastos)
